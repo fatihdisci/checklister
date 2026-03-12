@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bulut Senkronizasyonlu Checklist</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #f7f7f8; --card: #ffffff; --text: #1f2937; --muted: #6b7280;
+      --line: #e5e7eb; --accent: #2563eb; --accent-soft: #dbeafe;
+      --ok: #16a34a; --warn: #b45309; --danger: #ef4444; --danger-soft: #fee2e2;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, sans-serif; background: var(--bg); color: var(--text); }
+    .wrap { max-width: 900px; margin: 32px auto; padding: 0 16px 40px; }
+    
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.04); overflow: hidden; }
+    .header { padding: 24px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+    .header-text h1 { margin: 0 0 8px; font-size: 24px; }
+    .header-text p { margin: 0; color: var(--muted); font-size: 14px; }
+    
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; padding: 16px 24px; border-bottom: 1px solid var(--line); background: #fcfcfd; }
+    button { border: none; background: var(--accent); color: white; padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: opacity .2s; }
+    button:hover { opacity: .9; }
+    button.secondary { background: #eef2ff; color: #3730a3; }
+    button.success { background: var(--ok); color: #fff; }
+    button.dark { background: #1f2937; color: #fff; }
+    button.icon-btn { background: transparent; color: var(--muted); padding: 4px 8px; font-size: 16px; border-radius: 6px; }
+    button.icon-btn:hover { background: var(--line); color: var(--text); }
+    button.danger-icon:hover { background: var(--danger-soft); color: var(--danger); }
+
+    .meta { padding: 16px 24px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 1fr; gap: 12px; }
+    .meta-value-input { font-size: 18px; font-weight: 700; width: 100%; border: 1px solid transparent; padding: 6px 8px; margin-left: -8px; border-radius: 6px; }
+    .meta-value-input:hover, .meta-value-input:focus { border-color: var(--line); outline: none; background: #f9fafb; }
+
+    .progress-wrap { padding: 16px 24px 0; }
+    .progress-text { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; color: var(--muted); }
+    .progress { width: 100%; height: 12px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    .progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--ok)); transition: width .3s ease; }
+
+    .list { padding: 16px 24px; }
+    .item { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: white; display: flex; gap: 12px; align-items: flex-start; }
+    .item.done { background: #f0fdf4; border-color: #bbf7d0; }
+    .item input[type="checkbox"] { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+    .item-content { flex-grow: 1; }
+    .item-title { font-weight: 700; margin-bottom: 4px; }
+    .item-sub { color: var(--muted); font-size: 13px; white-space: pre-wrap; }
+    .item-controls { display: flex; flex-direction: column; gap: 4px; }
+    
+    .add-form { background: #f9fafb; border-top: 1px solid var(--line); padding: 20px 24px; display: flex; flex-direction: column; gap: 10px; }
+    .add-form input { padding: 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; width: 100%; }
+    .add-form-row { display: flex; gap: 10px; }
+
+    .status-bar { padding: 10px 24px; background: #f3f4f6; font-size: 13px; color: var(--muted); text-align: center; border-top: 1px solid var(--line); }
+
+    /* Modal (GitHub Ayarları) */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 100; padding: 16px; }
+    .modal { background: #fff; width: 100%; max-width: 400px; border-radius: 16px; padding: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+    .modal h2 { margin: 0 0 16px; font-size: 20px; }
+    .modal label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; margin-top: 12px; }
+    .modal input { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+    .hidden-export { position: fixed; left: -9999px; top: 0; }
+    
+    @media print {
+      body { background: #fff; }
+      .wrap { max-width: none; margin: 0; padding: 0; }
+      .toolbar, .add-form, .status-bar, .item-controls, #settingsBtn { display: none !important; }
+      .card { border: none; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <div class="header-text">
+          <h1>PWA Checklist Builder</h1>
+          <p>Verileriniz GitHub deponuzda güvende tutulur.</p>
+        </div>
+        <button id="settingsBtn" class="dark" title="GitHub Ayarları">⚙️ Ayarlar</button>
+      </div>
+
+      <div class="toolbar">
+        <button id="btnLoadCloud" class="secondary">☁️ Buluttan Yükle</button>
+        <button id="btnSaveCloud" class="success">☁️ Buluta Kaydet</button>
+        <button id="btnExportPdf" class="dark">📄 PDF Al</button>
+        <button id="btnClear" class="danger-icon" style="margin-left:auto; border:1px solid var(--line)">Temizle</button>
+      </div>
+
+      <div class="meta">
+        <input id="titleInput" class="meta-value-input" value="Yeni Checklist" placeholder="Checklist Başlığı" />
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-text">
+          <span id="statusText">İlerleme</span>
+          <span id="progressText">0 / 0</span>
+        </div>
+        <div class="progress">
+          <div id="progressBar" class="progress-bar"></div>
+        </div>
+      </div>
+
+      <div id="list" class="list"></div>
+
+      <div class="add-form">
+        <label style="font-size:12px; color:var(--muted); font-weight:bold;">YENİ MADDE EKLE</label>
+        <input type="text" id="newItemLabel" placeholder="Madde Başlığı (Örn: Veritabanını yedekle)" />
+        <div class="add-form-row">
+          <input type="text" id="newItemDesc" placeholder="Açıklama veya Etiketler (İsteğe bağlı)" />
+          <button id="btnAddItem">Listeye Ekle</button>
+        </div>
+      </div>
+
+      <div id="statusBar" class="status-bar">Sistem hazır.</div>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="modal-overlay">
+    <div class="modal">
+      <h2>GitHub Bağlantı Ayarları</h2>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">Verilerinizi senkronize etmek için GitHub Personal Access Token (PAT) gereklidir. Bu bilgiler sadece tarayıcınızda kalır.</p>
+      
+      <label>GitHub Token (PAT)</label>
+      <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxx" />
+      
+      <label>Kullanıcı Adı (Owner)</label>
+      <input type="text" id="ghOwner" placeholder="fatihdisci" />
+      
+      <label>Repo Adı</label>
+      <input type="text" id="ghRepo" placeholder="checklist-data" />
+      
+      <label>Dosya Yolu (Path)</label>
+      <input type="text" id="ghPath" placeholder="data/my-list.json" value="data/my-list.json" />
+
+      <div class="modal-actions">
+        <button id="btnCancelSettings" class="secondary">İptal</button>
+        <button id="btnSaveSettings" class="success">Kaydet</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="hiddenExportRoot" class="hidden-export"></div>
+
+  <script>
+    // PWA Service Worker Kaydı
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW Kayıt Hatası:', err));
+      });
+    }
+
+    // --- TEMEL STATE ---
+    let state = { title: "Yeni Checklist", items: [] };
+    let githubSha = null; // Dosya güncellemesi için GitHub SHA değeri
+
+    // --- DOM ELEMENTLERİ ---
+    const listEl = document.getElementById("list");
+    const titleInput = document.getElementById("titleInput");
+    const progressText = document.getElementById("progressText");
+    const progressBar = document.getElementById("progressBar");
+    const statusBar = document.getElementById("statusBar");
+
+    // Modal
+    const modal = document.getElementById("settingsModal");
+    const ghTokenInp = document.getElementById("ghToken");
+    const ghOwnerInp = document.getElementById("ghOwner");
+    const ghRepoInp = document.getElementById("ghRepo");
+    const ghPathInp = document.getElementById("ghPath");
+
+    function setStatus(msg) { statusBar.textContent = msg; }
+    function generateId() { return 'item_' + Math.random().toString(36).substring(2, 9); }
+
+    // --- GITHUB ENTEGRASYONU ---
+    function getGhSettings() {
+      return JSON.parse(localStorage.getItem('gh_settings')) || { token:'', owner:'', repo:'', path:'data.json' };
+    }
+
+    // UTF-8 destekli Base64 Dönüşümleri
+    function utf8_to_b64(str) { return window.btoa(unescape(encodeURIComponent(str))); }
+    function b64_to_utf8(str) { return decodeURIComponent(escape(window.atob(str))); }
+
+    async function loadFromGitHub() {
+      const s = getGhSettings();
+      if (!s.token || !s.owner || !s.repo) return alert("Lütfen önce ayarlardan GitHub bilgilerinizi girin.");
+      
+      setStatus("Buluttan yükleniyor...");
+      try {
+        const res = await fetch(`https://api.github.com/repos/${s.owner}/${s.repo}/contents/${s.path}`, {
+          headers: { "Authorization": `token ${s.token}`, "Accept": "application/vnd.github.v3+json" }
+        });
+
+        if (res.status === 404) {
+          setStatus("Dosya henüz bulutta yok, kaydedebilirsiniz.");
+          return;
+        }
+
+        if (!res.ok) throw new Error("GitHub API Hatası: " + res.status);
+
+        const data = await res.json();
+        githubSha = data.sha; // Gelecekteki güncellemeler için SHA sakla
+        
+        const decodedContent = b64_to_utf8(data.content);
+        const parsedData = JSON.parse(decodedContent);
+        
+        state.title = parsedData.title || "Checklist";
+        state.items = parsedData.items || [];
+        renderChecklist();
+        setStatus("Veri başarıyla buluttan yüklendi.");
+      } catch (err) {
+        alert("Yükleme başarısız: " + err.message);
+        setStatus("Buluttan yükleme hatası.");
+      }
+    }
+
+    async function saveToGitHub() {
+      const s = getGhSettings();
+      if (!s.token || !s.owner || !s.repo) return alert("Lütfen önce ayarlardan GitHub bilgilerinizi girin.");
+
+      setStatus("Buluta kaydediliyor...");
+      try {
+        const contentBase64 = utf8_to_b64(JSON.stringify(state, null, 2));
+        const body = {
+          message: `Checklist güncellendi: ${new Date().toLocaleString()}`,
+          content: contentBase64,
+          sha: githubSha || undefined
+        };
+
+        const res = await fetch(`https://api.github.com/repos/${s.owner}/${s.repo}/contents/${s.path}`, {
+          method: "PUT",
+          headers: { "Authorization": `token ${s.token}`, "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+
+        if (!res.ok) {
+          // Eğer conflict (409) olursa güncel SHA'yı alıp tekrar denemek gerekir ama basit tuttuk.
+          throw new Error("GitHub API Hatası: " + res.status);
+        }
+
+        const data = await res.json();
+        githubSha = data.content.sha; // Yeni SHA'yı kaydet
+        setStatus("Değişiklikler buluta kaydedildi.");
+      } catch (err) {
+        alert("Kaydetme başarısız: " + err.message);
+        setStatus("Buluta kaydetme hatası.");
+      }
+    }
+
+    // --- ARAYÜZ İŞLEMLERİ ---
+    function renderChecklist() {
+      titleInput.value = state.title;
+      listEl.innerHTML = "";
+      let doneCount = 0;
+
+      state.items.forEach((item, index) => {
+        if (item.checked) doneCount++;
+
+        const el = document.createElement("div");
+        el.className = "item" + (item.checked ? " done" : "");
+
+        // Checkbox
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !!item.checked;
+        cb.onchange = () => { item.checked = cb.checked; renderChecklist(); };
+
+        // İçerik
+        const content = document.createElement("div");
+        content.className = "item-content";
+        content.innerHTML = `<div class="item-title">${item.label}</div>`;
+        if (item.description) content.innerHTML += `<div class="item-sub">${item.description}</div>`;
+
+        // Kontroller (Yukarı, Aşağı, Sil)
+        const controls = document.createElement("div");
+        controls.className = "item-controls";
+
+        const btnUp = document.createElement("button");
+        btnUp.className = "icon-btn"; btnUp.innerHTML = "↑";
+        btnUp.disabled = index === 0;
+        btnUp.onclick = () => {
+          [state.items[index-1], state.items[index]] = [state.items[index], state.items[index-1]];
+          renderChecklist();
+        };
+
+        const btnDown = document.createElement("button");
+        btnDown.className = "icon-btn"; btnDown.innerHTML = "↓";
+        btnDown.disabled = index === state.items.length - 1;
+        btnDown.onclick = () => {
+          [state.items[index+1], state.items[index]] = [state.items[index], state.items[index+1]];
+          renderChecklist();
+        };
+
+        const btnDel = document.createElement("button");
+        btnDel.className = "icon-btn danger-icon"; btnDel.innerHTML = "🗑";
+        btnDel.onclick = () => {
+          if(confirm("Silmek istediğinize emin misiniz?")) { state.items.splice(index, 1); renderChecklist(); }
+        };
+
+        controls.append(btnUp, btnDown, btnDel);
+        el.append(cb, content, controls);
+        listEl.appendChild(el);
+      });
+
+      // Progress Update
+      const total = state.items.length;
+      progressText.textContent = `${doneCount} / ${total}`;
+      progressBar.style.width = total === 0 ? "0%" : `${(doneCount/total)*100}%`;
+      
+      // Yerel önbelleğe (Local Storage) yedekleme
+      localStorage.setItem("local_checklist_backup", JSON.stringify(state));
+    }
+
+    // --- EVENT DİNLEYİCİLERİ ---
+    titleInput.addEventListener("input", e => { state.title = e.target.value; });
+
+    document.getElementById("btnAddItem").onclick = () => {
+      const label = document.getElementById("newItemLabel").value.trim();
+      const desc = document.getElementById("newItemDesc").value.trim();
+      if (!label) return alert("Başlık zorunludur.");
+      state.items.push({ id: generateId(), label, description: desc, checked: false });
+      document.getElementById("newItemLabel").value = "";
+      document.getElementById("newItemDesc").value = "";
+      document.getElementById("newItemLabel").focus();
+      renderChecklist();
+    };
+
+    // Modal İşlemleri
+    document.getElementById("settingsBtn").onclick = () => {
+      const s = getGhSettings();
+      ghTokenInp.value = s.token; ghOwnerInp.value = s.owner; ghRepoInp.value = s.repo; ghPathInp.value = s.path;
+      modal.style.display = "flex";
+    };
+    document.getElementById("btnCancelSettings").onclick = () => modal.style.display = "none";
+    document.getElementById("btnSaveSettings").onclick = () => {
+      const newSettings = { token: ghTokenInp.value.trim(), owner: ghOwnerInp.value.trim(), repo: ghRepoInp.value.trim(), path: ghPathInp.value.trim() || 'data.json' };
+      localStorage.setItem('gh_settings', JSON.stringify(newSettings));
+      modal.style.display = "none";
+      setStatus("Ayarlar kaydedildi.");
+    };
+
+    document.getElementById("btnLoadCloud").onclick = loadFromGitHub;
+    document.getElementById("btnSaveCloud").onclick = saveToGitHub;
+    document.getElementById("btnClear").onclick = () => {
+      if(confirm("Tüm veriler silinecek, emin misiniz?")) { state.items = []; githubSha=null; renderChecklist(); }
+    };
+
+    // Sayfa Yüklendiğinde
+    window.onload = () => {
+      const backup = localStorage.getItem("local_checklist_backup");
+      if (backup) {
+        try { state = JSON.parse(backup); renderChecklist(); setStatus("Yerel yedek yüklendi. Buluttan güncelleyebilirsiniz."); } 
+        catch (e) { console.error(e); }
+      }
+    };
+    
+    // Basit PDF Export (Görsel baskı mekanizmasıyla tetiklenir)
+    document.getElementById("btnExportPdf").onclick = () => window.print();
+
+  </script>
+</body>
+</html>

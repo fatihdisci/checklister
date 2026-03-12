@@ -1,0 +1,16 @@
+{
+  "name": "Checklist Builder",
+  "short_name": "Checklist",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f7f7f8",
+  "theme_color": "#2563eb",
+  "description": "Bulut senkronizasyonlu dinamik kontrol listesi uygulaması.",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/100/100473.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
